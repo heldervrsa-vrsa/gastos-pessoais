@@ -1,24 +1,22 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="pt">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<link rel="manifest" href="manifest.json">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Gastos Diários</title>
+<link rel="manifest" href="manifest.json">
 </head>
 <body>
 <h1>Gastos Diários</h1>
+<input id="valor" type="number" placeholder="Valor €"><br>
+<input id="data" type="date"><br>
+<input id="categoria" placeholder="Categoria"><br>
+<button onclick="guardar()">Guardar</button><br><br>
 
-<h3>Novo gasto</h3>
-<input id="valor" type="number" placeholder="Valor €"><br><br>
-<input id="data" type="date"><br><br>
-<input id="categoria" placeholder="Categoria"><br><br>
-<button onclick="guardar()">Guardar</button>
-
-<h3>Registos</h3>
+<h2>Registos</h2>
 <div id="lista"></div>
 
-<button onclick="apagarTudo()" style="margin-top:20px;color:red;">Apagar TODOS os dados</button>
+<button onclick="apagarTudo()" style="color:red;margin-top:10px;">Apagar TODOS os dados</button>
 
 <script src="app.js"></script>
 </body>

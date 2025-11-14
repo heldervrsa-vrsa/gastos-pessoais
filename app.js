@@ -1,29 +1,26 @@
 
-const KEY="pwa_gastos_final2";
+const STORAGE_KEY='pwa_gastos_final_full';
 
 function carregar(){
-  let dados = JSON.parse(localStorage.getItem(KEY) || "[]");
-  let html="";
-  dados.forEach(x=>{
-    html += `<div>${x.valor}€ - ${x.data} - ${x.cat}</div>`;
-  });
-  document.getElementById("lista").innerHTML = html || "Sem registos";
+  const dados = JSON.parse(localStorage.getItem(STORAGE_KEY)||"[]");
+  const lista = document.getElementById('lista');
+  lista.innerHTML = dados.length ? dados.map(d=>`${d.valor}€ - ${d.data} - ${d.categoria}`).join('<br>') : 'Sem registos';
 }
 
 function guardar(){
-  let v = document.getElementById("valor").value;
-  let d = document.getElementById("data").value;
-  let c = document.getElementById("categoria").value;
-  if(!v||!d||!c){alert("Preencha tudo");return;}
-  let dados = JSON.parse(localStorage.getItem(KEY) || "[]");
-  dados.push({valor:v, data:d, cat:c});
-  localStorage.setItem(KEY, JSON.stringify(dados));
+  const valor = document.getElementById('valor').value;
+  const data = document.getElementById('data').value;
+  const categoria = document.getElementById('categoria').value;
+  if(!valor || !data || !categoria){alert('Preencha todos os campos'); return;}
+  const dados = JSON.parse(localStorage.getItem(STORAGE_KEY)||"[]");
+  dados.push({valor,data,categoria});
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(dados));
   carregar();
 }
 
 function apagarTudo(){
-  if(confirm("Apagar todos os dados?")){
-    localStorage.removeItem(KEY);
+  if(confirm('Apagar TODOS os dados?')){
+    localStorage.removeItem(STORAGE_KEY);
     carregar();
   }
 }
