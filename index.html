@@ -1,3 +1,25 @@
 <!doctype html>
-<html lang="pt-PT">
-<head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Gastos Diários — Final</title><link rel="manifest" href="manifest.json"><meta name="theme-color" content="#1f2937"></head><body><h1>Gastos Diários</h1><button id="resetBtn">Apagar tudo</button><script>const STORAGE_KEY='pwa_finance_final_pt_eur'; document.getElementById('resetBtn').onclick=()=>{ if(confirm('Apagar TODOS os dados?')){ localStorage.removeItem(STORAGE_KEY); alert('Dados apagados'); }};</script></body></html>
+<html lang="pt">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="manifest" href="manifest.json">
+<title>Gastos Diários</title>
+</head>
+<body>
+<h1>Gastos Diários</h1>
+
+<h3>Novo gasto</h3>
+<input id="valor" type="number" placeholder="Valor €"><br><br>
+<input id="data" type="date"><br><br>
+<input id="categoria" placeholder="Categoria"><br><br>
+<button onclick="guardar()">Guardar</button>
+
+<h3>Registos</h3>
+<div id="lista"></div>
+
+<button onclick="apagarTudo()" style="margin-top:20px;color:red;">Apagar TODOS os dados</button>
+
+<script src="app.js"></script>
+</body>
+</html>
