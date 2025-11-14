@@ -1,23 +1,427 @@
-<!DOCTYPE html>
-<html lang="pt">
+<!doctype html>
+<html lang="pt-PT">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Gastos Diários</title>
-<link rel="manifest" href="manifest.json">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Gastos Diários — PWA</title>
+  <meta name="description" content="App simples de finanças pessoais offline (PWA) em Português. Export/Import CSV.">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#1f2937">
+  <style>
+    :root{
+      --bg:#f3f4f6; --card:#ffffff; --muted:#6b7280; --accent:#2563eb; --accent-2:#64748b;
+      --glass: rgba(255,255,255,0.6);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+    }
+    @media (prefers-color-scheme: dark){
+      :root{
+        --bg: #0b1220; --card:#0f1724; --muted:#9ca3af; --accent:#60a5fa; --accent-2:#94a3b8;
+        --glass: rgba(255,255,255,0.04);
+      }
+      body { color: #e6eef8; }
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:linear-gradient(180deg,var(--bg), #0f1724);min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:20px}
+    .app{width:100%;max-width:980px}
+    header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}
+    .brand{display:flex;gap:12px;align-items:center}
+    .logo{width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:flex;align-items:center;justify-content:center;box-shadow:0 6px 18px rgba(15,23,42,0.2);font-size:22px;color:white}
+    h1{margin:0;font-size:18px}
+    .controls{display:flex;gap:8px;align-items:center}
+    button{background:transparent;border:none;padding:8px 12px;border-radius:10px;font-weight:600;cursor:pointer}
+    .primary{background:linear-gradient(90deg,var(--accent),#7c3aed);color:white;box-shadow:0 6px 18px rgba(37,99,235,0.15)}
+    main{display:grid;grid-template-columns:1fr 380px;gap:16px}
+    .card{background:var(--card);backdrop-filter: blur(6px);border-radius:14px;padding:14px;box-shadow:0 6px 20px rgba(2,6,23,0.08);border:1px solid rgba(0,0,0,0.04)}
+    label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+    input,select,textarea{padding:10px;border-radius:10px;border:1px solid rgba(15,23,42,0.04);width:100%;font-size:15px;background:transparent;color:inherit}
+    .row{display:flex;gap:8px;align-items:center}
+    .muted{color:var(--muted);font-size:13px}
+    .categories{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+    .cat{padding:8px 10px;border-radius:999px;background:linear-gradient(180deg,rgba(255,255,255,0.6),rgba(255,255,255,0.4));box-shadow:0 4px 12px rgba(2,6,23,0.04);display:flex;gap:8px;align-items:center}
+    .list{max-height:360px;overflow:auto;margin-top:10px}
+    .expense{display:flex;justify-content:space-between;align-items:center;padding:10px;border-radius:10px;border:1px solid rgba(0,0,0,0.02);margin-bottom:8px;background:linear-gradient(180deg,transparent, rgba(0,0,0,0.01))}
+    footer{margin-top:18px;color:var(--muted);font-size:13px;text-align:center}
+    @media(max-width:900px){ main{grid-template-columns:1fr} }
+    /* subtle animations */
+    .fade-in{animation:fadeIn .36s ease both}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-<h1>Gastos Diários</h1>
-<input id="valor" type="number" placeholder="Valor €"><br>
-<input id="data" type="date"><br>
-<input id="categoria" placeholder="Categoria"><br>
-<button onclick="guardar()">Guardar</button><br><br>
+  <div class="app">
+  <div id="lockScreen" style="display:none;position:fixed;left:0;top:0;width:100%;height:100%;background:var(--bg);align-items:center;justify-content:center;z-index:99999">
+    <div style="max-width:360px;width:100%;padding:20px;text-align:center">
+      <div style="font-size:44px;margin-bottom:12px" id="lockIcon">🔒</div>
+      <h2 id="lockTitle">Insira o PIN</h2>
+      <input id="lockPin" placeholder="PIN" style="font-size:20px;padding:10px;border-radius:8px;width:60%;text-align:center;margin-top:8px">
+      <div style="margin-top:12px"><button id="unlockBtn" class="primary">Desbloquear</button></div>
+    </div>
+  </div>
 
-<h2>Registos</h2>
-<div id="lista"></div>
+    <header>
+      <div class="brand">
+        <div class="logo">€</div>
+        <div><h1>Gastos Diários</h1><div class="muted">PWA — Offline • Instalável</div></div>
+      </div>
+      <div class="controls">
+        <button id="installBtn" style="display:none">Instalar</button>
+        <button id="exportCSV" class="primary">Exportar CSV</button><button id="exportXLSX" class="primary" style="margin-left:6px">Exportar XLSX</button>
+        <button id="importCSV">Importar</button>
+      <button id="settingsBtn" title="Definições" style="background:transparent;border:1px solid rgba(255,255,255,0.06);padding:8px;border-radius:10px;color:inherit">⚙️</button></div>
+    </header>
 
-<button onclick="apagarTudo()" style="color:red;margin-top:10px;">Apagar TODOS os dados</button>
+    <main>
+      <section class="card fade-in">
+        <h3>Novo gasto</h3>
+        <div style="margin-top:10px">
+          <label>Valor (€)</label>
+          <input id="amount" type="number" step="0.01" placeholder="12.50">
+        </div>
+        <div style="margin-top:10px">
+          <label>Data</label>
+          <input id="date" type="date">
+        </div>
+        <div style="margin-top:10px">
+          <label>Categoria</label>
+          <div class="row"><select id="categorySelect"></select><button id="addCat" title="Adicionar">+</button></div>
+        </div>
+        <div style="margin-top:10px">
+          <label>Nota</label>
+          <input id="note" placeholder="Ex: almoço, táxi">
+        </div>
+        <div style="margin-top:12px" class="row">
+          <button id="saveBtn" class="primary">Registar gasto</button>
+          <button id="clearBtn">Limpar</button>
+        </div>
 
-<script src="app.js"></script>
+        <hr style="margin:12px 0">
+        <h4>Categorias</h4>
+        <div class="categories" id="categoriesList"></div>
+
+        <hr style="margin:12px 0">
+        <h4>Últimos gastos</h4>
+<button id="deleteAllBtn" class="danger" style="margin-bottom:10px">Apagar todos os registos</button>
+        <div class="list" id="list"></div>
+      </section>
+
+      <aside class="card fade-in">
+        <h3>Resumo & Gráficos</h3>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+          <input id="monthPicker" type="month" style="flex:1">
+          <select id="grouping" title="Agrupar"><option value="month">Mês</option><option value="year">Ano</option></select>
+        </div>
+
+        <div style="margin-top:12px">
+          <canvas id="chartMonthly" height="160"></canvas>
+        </div>
+
+        <div style="margin-top:12px">
+          <h4 style="margin:6px 0">Gráfico anual</h4>
+          <canvas id="chartAnnual" height="160"></canvas>
+        </div>
+      </aside>
+    </main>
+
+    <section class="card fade-in" style="margin-top:16px">
+      <h3>Importar / Exportar</h3>
+      <p class="muted">CSV: valor,data,categoria,nota — Ex.: 12.50,2025-11-13,Transporte,Taxi</p>
+      <input id="fileInput" type="file" accept=".csv" style="display:none">
+      <div style="display:flex;gap:8px;margin-top:8px"><button id="downloadCSV">Descarregar CSV</button><button id="uploadCSV">Carregar CSV</button><button id="resetBtn">Resetar dados</button></div>
+    </section>
+
+    <footer>Dados guardados no dispositivo — sem servidores • Versão 2</footer>
+  </div>
+
+<script>
+const STORAGE_KEY = 'pwa_finance_v2_pt_eur';
+let appState = { categories: [], expenses: [] };
+
+// default categories
+const defaults = [
+  {id:crypto.randomUUID(), name:'Comida', emoji:'🍔', color:'#2ecc71'},
+  {id:crypto.randomUUID(), name:'Transporte', emoji:'🚗', color:'#3498db'},
+  {id:crypto.randomUUID(), name:'Lazer', emoji:'🎮', color:'#9b59b6'},
+  {id:crypto.randomUUID(), name:'Casa', emoji:'🏠', color:'#f97316'}
+];
+
+function loadState(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(raw){ appState = JSON.parse(raw); }
+    else { appState = { categories: defaults, expenses: [] }; saveState(); }
+  }catch(e){ console.error(e); appState = { categories: defaults, expenses: [] }; }
+}
+function saveState(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(appState)); render(); }
+
+// UI refs
+const categorySelect = document.getElementById('categorySelect');
+const categoriesListEl = document.getElementById('categoriesList');
+const listEl = document.getElementById('list');
+const monthPicker = document.getElementById('monthPicker');
+
+function renderCategories(){
+  categorySelect.innerHTML = '';
+  categoriesListEl.innerHTML = '';
+  appState.categories.forEach(cat=>{
+    const opt = document.createElement('option'); opt.value = cat.id; opt.textContent = `${cat.emoji} ${cat.name}`;
+    categorySelect.appendChild(opt);
+    const pill = document.createElement('div'); pill.className='cat'; pill.innerHTML = `<div style="font-size:18px">${cat.emoji}</div><div style="font-weight:700;margin-left:6px">${cat.name}</div><button data-id="${cat.id}" style="margin-left:6px;background:transparent;border:none;cursor:pointer">✖</button>`;
+    categoriesListEl.appendChild(pill);
+    pill.querySelector('button').onclick = (e)=> removeCategory(e.target.dataset.id);
+  });
+}
+
+function renderList(){
+  listEl.innerHTML='';
+  const sorted = [...appState.expenses].sort((a,b)=> new Date(b.date)-new Date(a.date));
+  sorted.slice(0,40).forEach(exp=>{
+    const cat = appState.categories.find(c=>c.id===exp.categoryId) || {name:exp.category, emoji:'🏷️'};
+    const el = document.createElement('div'); el.className='expense';
+    el.innerHTML = `<div><div style="font-weight:700">${cat.emoji} ${cat.name}</div><div class="muted">${exp.note||''}</div></div><div style="text-align:right"><div style="font-weight:700">${Number(exp.amount).toFixed(2)} €</div><div class="muted">${new Date(exp.date).toLocaleDateString()}</div></div>`;
+    
+    const delBtn = document.createElement('button');
+    delBtn.textContent = '🗑️';
+    delBtn.style.marginLeft='8px';
+    delBtn.onclick = ()=>{ appState.expenses = appState.expenses.filter(x=>x.id!==exp.id); saveState(); };
+    el.appendChild(delBtn);
+
+    listEl.appendChild(el);
+  });
+}
+
+// Charts
+let chartMonthly, chartAnnual;
+function updateCharts(){
+  const grouping = document.getElementById('grouping').value;
+  const monthVal = monthPicker.value;
+  // monthly sums per category
+  let filtered = appState.expenses;
+  if(grouping==='month' && monthVal){
+    const [y,m] = monthVal.split('-').map(Number);
+    filtered = filtered.filter(e=>{ const d=new Date(e.date); return d.getFullYear()===y && (d.getMonth()+1)===m; });
+  }
+  const sums = {};
+  filtered.forEach(e=>{
+    const cat = appState.categories.find(c=>c.id===e.categoryId);
+    const key = cat ? cat.name : (e.category||'Outros');
+    sums[key] = (sums[key]||0) + Number(e.amount);
+  });
+  const labels = Object.keys(sums);
+  const data = labels.map(l=>sums[l]);
+  const bg = labels.map(l=> (appState.categories.find(c=>c.name===l)||{color:'#888'}).color );
+  if(chartMonthly) chartMonthly.destroy();
+  chartMonthly = new Chart(document.getElementById('chartMonthly').getContext('2d'), { type:'doughnut', data:{labels, datasets:[{data, backgroundColor:bg}]}, options:{plugins:{legend:{position:'bottom'}}} });
+
+  // annual chart (totals per month)
+  const now = new Date();
+  const year = (monthVal? Number(monthVal.split('-')[0]) : now.getFullYear());
+  const monthlyTotals = Array(12).fill(0);
+  appState.expenses.forEach(e=>{ const d=new Date(e.date); if(d.getFullYear()===year){ monthlyTotals[d.getMonth()] += Number(e.amount); } });
+  const monthLabels = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  if(chartAnnual) chartAnnual.destroy();
+  chartAnnual = new Chart(document.getElementById('chartAnnual').getContext('2d'), { type:'bar', data:{labels:monthLabels, datasets:[{label:'Total (€)', data: monthlyTotals, backgroundColor: monthlyTotals.map(v=> v>0? '#60a5fa':'#cbd5e1') }]}, options:{plugins:{legend:{display:false}}, animation:{duration:600}} });
+}
+
+
+document.getElementById('deleteAllBtn').onclick = ()=>{
+  if(confirm('Tem a certeza que deseja apagar todos os registos?')){
+    appState.expenses = [];
+    saveState();
+  }
+};
+// Actions
+document.getElementById('saveBtn').onclick = ()=>{
+  const amount = parseFloat(document.getElementById('amount').value || 0);
+  const date = document.getElementById('date').value || new Date().toISOString().slice(0,10);
+  const categoryId = categorySelect.value;
+  const note = document.getElementById('note').value;
+  if(!amount || !categoryId){ alert('Preencha valor e categoria'); return; }
+  appState.expenses.push({ id: crypto.randomUUID(), amount, date, categoryId, note });
+  saveState();
+  document.getElementById('amount').value=''; document.getElementById('note').value='';
+};
+
+document.getElementById('clearBtn').onclick = ()=>{ document.getElementById('amount').value=''; document.getElementById('note').value=''; };
+
+document.getElementById('addCat').onclick = ()=>{
+  const name = prompt('Nome da categoria (Ex: Alimentação)');
+  if(!name) return;
+  const emoji = prompt('Emoji (Ex: 🍔)') || '🏷️';
+  const color = prompt('Cor hex (Ex: #f97316)') || '#95a5a6';
+  appState.categories.push({id:crypto.randomUUID(), name, emoji, color});
+  saveState();
+};
+
+function removeCategory(id){
+  if(!confirm('Remover categoria? Os gastos ligados ficarão como \"Outros\".')) return;
+  appState.categories = appState.categories.filter(c=>c.id!==id);
+  appState.expenses = appState.expenses.map(e => e.categoryId===id ? ({...e, categoryId:null, category:'Outros'}) : e);
+  saveState();
+}
+
+document.getElementById('downloadCSV').onclick = ()=>{
+  const lines = ['valor,data,categoria,nota'];
+  appState.expenses.forEach(e=>{
+    const cat = appState.categories.find(c=>c.id===e.categoryId);
+    const catName = cat ? cat.name : (e.category||'Outros');
+    lines.push(`${Number(e.amount).toFixed(2)},${e.date},${catName},${(e.note||'').replace(/\\n/g,' ')}`);
+  });
+  const blob = new Blob([lines.join('\\n')], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'gastos.csv'; a.click(); URL.revokeObjectURL(url);
+};
+
+document.getElementById('uploadCSV').onclick = ()=> document.getElementById('fileInput').click();
+document.getElementById('fileInput').onchange = async (e)=>{
+  const f = e.target.files[0]; if(!f) return;
+  const txt = await f.text(); const lines = txt.split(/\\r?\\n/).filter(Boolean);
+  lines.slice(1).forEach(line=>{
+    const parts = line.split(',');
+    if(parts.length>=4){
+      const amount = parseFloat(parts[0]); const date = parts[1]; const categoryName = parts[2]; const note = parts.slice(3).join(',')||'';
+      let cat = appState.categories.find(c=>c.name===categoryName);
+      if(!cat){ cat = {id:crypto.randomUUID(), name:categoryName, emoji:'🏷️', color:'#95a5a6'}; appState.categories.push(cat); }
+      appState.expenses.push({id:crypto.randomUUID(), amount, date, categoryId:cat.id, note});
+    }
+  });
+  saveState(); e.target.value='';
+};
+
+document.getElementById('resetBtn').onclick = ()=>{ if(confirm('Apagar TODOS os dados?')){ localStorage.removeItem(STORAGE_KEY); appState = {categories:defaults, expenses:[]}; saveState(); } };
+
+// Install prompt
+let deferredPrompt; const installBtn = document.getElementById('installBtn');
+window.addEventListener('beforeinstallprompt', (e)=>{ e.preventDefault(); deferredPrompt = e; installBtn.style.display='inline-block'; installBtn.onclick = async ()=>{ deferredPrompt.prompt(); const choice = await deferredPrompt.userChoice; deferredPrompt=null; installBtn.style.display='none'; } });
+
+// Service worker register
+async function registerWorker(){
+  if('serviceWorker' in navigator){
+    try{ await navigator.serviceWorker.register('service-worker.js'); console.log('SW registado'); }catch(e){ console.log('SW falhou', e); }
+  }
+}
+
+// Init
+loadState();
+renderCategories();
+renderList();
+const today = new Date(); monthPicker.value = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
+updateCharts();
+
+function render(){ renderCategories(); renderList(); updateCharts(); }
+
+document.getElementById('grouping').onchange = updateCharts; monthPicker.onchange = updateCharts;
+
+registerWorker().catch(()=>{});
+document.getElementById('date').value = new Date().toISOString().slice(0,10);
+
+// --- Additional features: XLSX export, Settings, PIN lock ---
+
+// load SheetJS for XLSX export
+const sheetJsUrl = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+function loadSheetJs(cb){
+  if(window.XLSX) return cb();
+  const s = document.createElement('script'); s.src = sheetJsUrl; s.onload = cb; document.head.appendChild(s);
+}
+
+// Export XLSX
+document.getElementById('exportXLSX').onclick = ()=>{
+  loadSheetJs(()=>{
+    const wb = XLSX.utils.book_new();
+    const data = [['valor','data','categoria','nota']];
+    appState.expenses.forEach(e=>{
+      const cat = appState.categories.find(c=>c.id===e.categoryId);
+      const catName = cat ? cat.name : (e.category||'Outros');
+      data.push([Number(e.amount).toFixed(2), e.date, catName, e.note||'']);
+    });
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    XLSX.utils.book_append_sheet(wb, ws, 'Gastos');
+    const wbout = XLSX.write(wb, {bookType:'xlsx', type:'array'});
+    const blob = new Blob([wbout], {type:'application/octet-stream'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'gastos.xlsx'; a.click(); URL.revokeObjectURL(url);
+  });
+};
+
+// Settings modal handlers
+const settingsModal = document.getElementById('settingsModal');
+document.getElementById('settingsBtn').onclick = ()=>{
+  document.getElementById('appNameInput').value = document.querySelector('h1').textContent || 'Gastos Diários';
+  document.getElementById('appIconInput').value = document.querySelector('.logo').textContent || '€';
+  settingsModal.style.display='flex';
+};
+document.getElementById('cancelSettings').onclick = ()=> settingsModal.style.display='none';
+document.getElementById('saveSettings').onclick = ()=>{
+  const name = document.getElementById('appNameInput').value || 'Gastos Diários';
+  const icon = document.getElementById('appIconInput').value || '€';
+  const pin = document.getElementById('pinInput').value;
+  document.querySelector('h1').textContent = name;
+  document.querySelector('.logo').textContent = icon;
+  // save name/icon in localStorage
+  localStorage.setItem(STORAGE_KEY + '_meta', JSON.stringify({name, icon}));
+  if(pin && pin.length>=4){
+    // store SHA-256 of pin
+    const enc = new TextEncoder();
+    window.crypto.subtle.digest('SHA-256', enc.encode(pin)).then(hash=>{
+      const hv = Array.from(new Uint8Array(hash)).map(b=>b.toString(16).padStart(2,'0')).join('');
+      localStorage.setItem(STORAGE_KEY + '_pin', hv);
+      alert('PIN guardado');
+      settingsModal.style.display='none';
+      checkLock(); // immediately enable lock
+    });
+  } else {
+    settingsModal.style.display='none';
+  }
+};
+
+document.getElementById('removePin').onclick = ()=>{
+  localStorage.removeItem(STORAGE_KEY + '_pin');
+  alert('PIN removido');
+  settingsModal.style.display='none';
+  checkLock();
+};
+
+// PIN lock flow
+const lockScreen = document.getElementById('lockScreen');
+const lockPinInput = document.getElementById('lockPin');
+const unlockBtn = document.getElementById('unlockBtn');
+
+async function checkLock(){
+  const metaRaw = localStorage.getItem(STORAGE_KEY + '_meta');
+  if(metaRaw){
+    const meta = JSON.parse(metaRaw);
+    document.querySelector('h1').textContent = meta.name || 'Gastos Diários';
+    document.querySelector('.logo').textContent = meta.icon || '€';
+  }
+  const pinHash = localStorage.getItem(STORAGE_KEY + '_pin');
+  if(pinHash){
+    // show lock
+    lockScreen.style.display='flex';
+    document.getElementById('lockTitle').textContent = 'App protegida — insira o PIN';
+  } else {
+    lockScreen.style.display='none';
+  }
+}
+
+unlockBtn.onclick = async ()=>{
+  const pin = lockPinInput.value || '';
+  if(!pin) return alert('Insira o PIN');
+  const enc = new TextEncoder();
+  const hash = await crypto.subtle.digest('SHA-256', enc.encode(pin));
+  const hv = Array.from(new Uint8Array(hash)).map(b=>b.toString(16).padStart(2,'0')).join('');
+  const stored = localStorage.getItem(STORAGE_KEY + '_pin');
+  if(hv === stored){
+    lockScreen.style.display='none';
+    lockPinInput.value='';
+    alert('Desbloqueado');
+  } else {
+    alert('PIN incorreto');
+  }
+};
+
+// initialize meta and lock on load
+window.addEventListener('load', ()=>{ const metaRaw = localStorage.getItem(STORAGE_KEY + '_meta'); if(metaRaw){ const meta = JSON.parse(metaRaw); document.querySelector('h1').textContent = meta.name; document.querySelector('.logo').textContent = meta.icon; } checkLock(); });
+
+</script>
 </body>
 </html>
